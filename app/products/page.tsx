@@ -24,9 +24,12 @@ export default function ProductsPage() {
     const fetchProducts = async () => {
       try {
         setLoading(true);
+        setError(null);
         const supabase = createClient();
         
-        let query = supabase.from('products').select('*');
+        let query = supabase
+          .from('products')
+          .select('id, name, description, price, unit, image_url, category');
         
         if (selectedCategory !== 'all') {
           query = query.eq('category', selectedCategory);
@@ -35,14 +38,19 @@ export default function ProductsPage() {
         const { data, error: fetchError } = await query;
 
         if (fetchError) {
-          setError(fetchError.message);
-          console.error('Error fetching products:', fetchError);
+          setError(`Failed to fetch products: ${fetchError.message}`);
+          console.error('Supabase error:', fetchError);
+          setProducts([]);
+        } else if (data) {
+          setProducts(data as Product[]);
         } else {
-          setProducts(data || []);
+          setProducts([]);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('Error:', err);
+        const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+        setError(errorMessage);
+        console.error('Fetch error:', err);
+        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -81,36 +89,40 @@ export default function ProductsPage() {
         {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
-            <p className="text-lg text-gray-600">Loading products...</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
+            <p className="text-lg text-gray-600 mt-4">Loading products...</p>
           </div>
         )}
 
         {/* Error State */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
-            <p className="text-red-800">
-              Error loading products: {error}
-            </p>
+            <p className="text-red-800 font-semibold">Error loading products</p>
+            <p className="text-red-700 mt-1">{error}</p>
             <p className="text-sm text-red-600 mt-2">
-              Make sure your Supabase database has a 'products' table set up.
+              ⚠️ Make sure your Supabase database has a 'products' table with columns: id, name, description, price, unit, image_url, category
             </p>
           </div>
         )}
 
         {/* No Products State */}
-        {!loading && products.length === 0 && !error && (
-          <div className="text-center py-12">
+        {!loading && !error && products.length === 0 && (
+          <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
             <p className="text-lg text-gray-600">No products found in this category.</p>
+            <p className="text-sm text-gray-500 mt-2">Try selecting a different category or add products to your Supabase database.</p>
           </div>
         )}
 
         {/* Products Grid */}
-        {!loading && products.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+        {!loading && !error && products.length > 0 && (
+          <>
+            <p className="text-gray-600 mb-6">Showing {products.length} product(s)</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </main>
